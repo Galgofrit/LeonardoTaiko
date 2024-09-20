@@ -1,9 +1,12 @@
 #include <NintendoSwitchControlLibrary.h>
 #include <Keyboard.h>
 #include <EEPROM.h>
+#include <avr/wdt.h>
 
-const float min_threshold = 50;  // The minimum rate on triggering a input
-const int cd_length = 20; //Buffer loop times.
+#define DEBUG 
+
+const float min_threshold = 18;  // The minimum rate on triggering a input
+const int cd_length = 10; //Buffer loop times.
 const float k_decay = 0.99; //decay speed on the dynamite threshold.
 const float k_increase = 0.8;  //Dynamite threshold range.
 const int outputDuration_pc = 7; // For PC. How long a key should be pressed when triggering a input.
@@ -32,9 +35,34 @@ int threshold = min_threshold;
 // uint8_t dsize = sizeof(dloop) / sizeof(uint8_t);
 // uint8_t loopc = 0;
 
+void handle_mode_switch() {
+  int pc_status = digitalRead(0);
+  int ns_status = digitalRead(1);
+/*
+  Serial.println("pc status: ");
+  Serial.println(pc_status);
+
+  Serial.println("ns status: ");
+  Serial.println(ns_status);
+
+  Serial.println("mode: ");
+  Serial.println(mode);*/
+
+  if ((ns_status == LOW && pc_status == HIGH && mode == 0)
+   || (pc_status == LOW && ns_status == HIGH && mode == 1)) {
+    // Reset
+    wdt_enable(WDTO_15MS); // Set watchdog timer to reset after 15 ms
+    while (1) {} // Wait for the watchdog timer to reset
+  }
+
+}
 
 void setup() {
-//  Serial.begin(9600);
+  #ifdef DEBUG
+  Serial.begin(9600);
+  delay(1000);
+  #endif
+
   pinMode(0, INPUT_PULLUP);
   pinMode(1, INPUT_PULLUP);
   int pc_status = digitalRead(0);
@@ -69,6 +97,7 @@ void setup() {
 
 void loop() {
   unsigned long begin = millis();
+  handle_mode_switch();
 
   extendKey();
   bool output = false;
